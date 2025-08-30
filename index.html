@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checklist</title>
+ 
+  <style>
+    :root{
+      --pink: #ff4da6;       
+      --bg: #101114;         
+      --panel: #17181d;     
+      --text: #e7e7ec;       
+      --muted: #a9a9b2;       
+      --border: #2b2d36;      
+      --accent: var(--pink);
+    }
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(255,77,166,.08), transparent 60%),
+                  radial-gradient(800px 600px at 90% 0%, rgba(255,77,166,.06), transparent 40%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(16,17,20,.85), rgba(16,17,20,.65));
+      border-bottom:1px solid var(--border);
+    }
+    .wrap{ max-width:1000px; margin:0 auto; padding:18px 16px; }
+    h1{ margin:0 0 8px; font-weight:800; letter-spacing:.3px }
+    .pink{ color:var(--pink) }
+    .controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .controls input[type="search"]{
+      flex:1 1 260px; padding:10px 12px; border-radius:12px; border:1px solid var(--border); background:#0f1013; color:var(--text);
+    }
+    button,.btn{
+      appearance:none; border:1px solid var(--border); background:#0f1013; color:var(--text);
+      padding:10px 14px; border-radius:12px; cursor:pointer; transition:.2s transform,.2s filter; font-weight:600;
+    }
+    button:hover{ filter:brightness(1.1) }
+    button:active{ transform:translateY(1px) }
+    .pill{ padding:8px 12px; border-radius:999px; font-size:13px }
+    main{ max-width:1000px; margin:18px auto; padding:0 16px 80px }
+    section.cat{ border:1px solid var(--border); background:var(--panel); border-radius:16px; padding:16px 14px; margin:14px 0 18px }
+    section.cat h2{ margin:0 0 10px; color:var(--pink); font-size:22px }
+
+    /* Lista de itens */
+    ul.topics{ list-style:none; margin:8px 0 0; padding:0; display:grid; grid-template-columns:repeat(1, minmax(0,1fr)); gap:8px }
+    @media (min-width:700px){ ul.topics{ grid-template-columns:repeat(2, minmax(0,1fr)) } }
+    li.topic{ display:flex; gap:10px; align-items:flex-start; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#121319 }
+
+    /* Checkbox lindo em rosa */
+    input[type="checkbox"]{ width:20px; height:20px; margin-top:2px; accent-color: var(--accent); }
+    label{ display:block; cursor:pointer }
+    .t-title{ font-weight:600 }
+    .t-meta{ font-size:12px; color:var(--muted); margin-top:4px }
+
+    /* Progresso por categoria */
+    .progress{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; margin:6px 0 8px }
+    .bar{ position:relative; height:8px; background:#0f1013; border:1px solid var(--border); border-radius:999px; overflow:hidden; flex:1 }
+    .bar > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, rgba(255,77,166,.85), rgba(255,77,166,.4)); }
+
+    /* Rodapé flutuante */
+    .fab{
+      position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:20;
+    }
+    .fab button{ box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    .muted{ color:var(--muted) }
+    .small{ font-size:12px }
+    .hr{ height:1px; background:var(--border); margin:10px 0 6px }
+    .hide{ display:none !important }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1><span class="pink">Checklist</span></h1>
+      <div class="controls">
+        <input id="q" type="search" placeholder="🔎 Buscar tópico (ex.: crase, matrizes, PIX)" />
+        <label class="pill"><input id="onlyOpen" type="checkbox" /> Mostrar só pendentes</label>
+        <button id="expandir">Expandir todas</button>
+        <button id="recolher">Recolher todas</button>
+      </div>
+      <div class="small muted" id="stats"></div>
+    </div>
+  </header>
+
+  <main id="content"></main>
+
+  <div class="fab">
+    <button id="exportBtn">⬇️ Exportar progresso (.json)</button>
+    <input id="importFile" type="file" accept="application/json" class="hide" />
+    <button id="importBtn">⬆️ Importar progresso</button>
+    <button id="resetBtn" style="border-color:#4b1e35">🗑️ Resetar tudo</button>
+  </div>
+
+  <template id="sectionTpl">
+    <section class="cat" data-cat="">
+      <h2></h2>
+      <div class="progress"><div class="bar"><i></i></div><span class="ptext">0/0</span></div>
+      <ul class="topics"></ul>
+    </section>
+  </template>
+
+  <template id="itemTpl">
+    <li class="topic" data-id="">
+      <input type="checkbox" />
+      <label>
+        <div class="t-title"></div>
+        <div class="t-meta"></div>
+      </label>
+    </li>
+  </template>
+
+  <script>
+    // ==== DADOS DOS TÓPICOS ===================================================
+    const DATA = [
+      { cat: 'LÍNGUA PORTUGUESA', items: [
+        '1. Compreensão de textos',
+        '2. Ortografia oficial',
+        '3. Classe e emprego de palavras',
+        '4. Emprego do acento indicativo de crase',
+        '5. Sintaxe da oração e do período',
+        '6. Emprego dos sinais de pontuação',
+        '7. Concordância verbal e nominal',
+        '8. Regência verbal e nominal',
+        '9. Colocação dos pronomes oblíquos átonos (próclise, mesóclise e ênclise)'
+      ]},
+      { cat: 'LÍNGUA INGLESA', items: [
+        '1. Conhecimento de um vocabulário fundamental',
+        '2. Aspectos gramaticais básicos para a compreensão de textos'
+      ]},
+      { cat: 'MATEMÁTICA', items: [
+        '1. Números inteiros, racionais e reais; problemas de contagem',
+        '2. Sistema legal de medidas',
+        '3. Razões e proporções; divisão proporcional; regras de três simples e compostas; porcentagens',
+        '4. Lógica proposicional',
+        '5. Noções de conjuntos',
+        '6. Relações e funções; Funções polinomiais; Funções exponenciais e logarítmicas',
+        '7. Matrizes',
+        '8. Determinantes',
+        '9. Sistemas lineares',
+        '10. Sequências',
+        '11. Progressões aritméticas (PA) e progressões geométricas (PG)'
+      ]},
+      { cat: 'ATUALIDADES DO MERCADO FINANCEIRO', items: [
+        '1. Os bancos na Era Digital: Atualidade, tendências e desafios',
+        '2. Internet banking',
+        '3. Mobile banking',
+        '4. Open banking',
+        '5. Novos modelos de negócios',
+        '6. Fintechs, startups e big techs',
+        '7. Sistema de bancos-sombra (Shadow banking)',
+        '8. Funções da moeda',
+        '9. O dinheiro na era digital: blockchain, bitcoin e demais criptomoedas',
+        '10. Marketplace',
+        '11. Correspondentes bancários',
+        '12. Arranjos de pagamentos',
+        '13. Sistema de pagamentos instantâneos (PIX)',
+        '14. Segmentação e interações digitais',
+        '15. Transformação digital no Sistema Financeiro'
+      ]},
+      { cat: 'MATEMÁTICA FINANCEIRA', items: [
+        '1. Conceitos gerais: valor do dinheiro no tempo, capital, juros, taxas, capitalização, fluxos de caixa, equivalência financeira',
+        '2. Juros simples: cálculo do montante, juros, taxa, principal e prazo',
+        '3. Juros compostos: cálculo do montante, juros, taxa, principal e prazo',
+        '4. Sistemas de amortização: Sistema Price, Sistema SAC'
+      ]},
+      { cat: 'CONHECIMENTOS BANCÁRIOS', items: [
+        '1. Sistema Financeiro Nacional e órgãos',
+        '2. Mercado financeiro e desdobramentos',
+        '3. Moeda e política monetária',
+        '4. Orçamento público, títulos do Tesouro Nacional e dívida pública',
+        '5. Produtos Bancários',
+        '6. Noções de Mercado de Capitais',
+        '7. Noções de Mercado de Câmbio',
+        '8. Regimes de taxas de câmbio',
+        '9. Taxas de câmbio nominais e reais',
+        '10. Impactos das taxas de câmbio sobre exportações e importações',
+        '11. Diferencial de juros e fluxos de capitais',
+        '12. Operações no mercado interbancário',
+        '13. Operações de tesouraria, varejo e recuperação de crédito',
+        '14. Taxas de juros e curva de juros',
+        '15. Garantias do SFN',
+        '16. Crime de lavagem de dinheiro',
+        '17. Autorregulação e Normativos SARB',
+        '18. Sigilo Bancário',
+        '19. LGPD',
+        '20. Legislação anticorrupção',
+        '21. Segurança cibernética',
+        '22. Ética aplicada e Código de Ética BB',
+        '23. Política de Responsabilidade Socioambiental do BB',
+        '24. ASG (Ambiental, Social e Governança)'
+      ]},
+      { cat: 'INFORMÁTICA', items: [
+        '1. Noções de sistemas operacionais: Windows 10 e Linux (SUSE SLES 15 SP2)',
+        '2. Edição de textos, planilhas e apresentações: Microsoft Office O365',
+        '3. Segurança da informação: fundamentos e conceitos',
+        '4. Proteção de estações de trabalho: USB, hardening, antimalware, firewall',
+        '5. Organização e gerenciamento de informações: arquivos, pastas, programas',
+        '6. Redes de computadores: conceitos básicos, ferramentas, procedimentos',
+        '7. Navegador Web: Edge v91, Firefox v78 ESR, busca e pesquisa',
+        '8. Correio eletrônico, fóruns, grupos de discussão, wikis',
+        '9. Redes sociais: Twitter, Facebook, LinkedIn, WhatsApp, YouTube, Instagram, Telegram',
+        '10. Sistemas de suporte à decisão e inteligência de negócio',
+        '11. Fundamentos de análise de dados',
+        '12. Conceitos de educação a distância',
+        '13. Tecnologias e ferramentas multimídia, áudio e vídeo',
+        '14. Ferramentas de produtividade e trabalho remoto: Teams, Webex, Google Hangout, Drive, Skype'
+      ]},
+      { cat: 'VENDAS E NEGOCIAÇÃO', items: [
+        '1. Estratégia empresarial: análise de mercado, forças competitivas, imagem, identidade e posicionamento',
+        '2. Segmentação de mercado',
+        '3. Ações para aumentar valor percebido pelo cliente',
+        '4. Gestão da experiência do cliente',
+        '5. Aprendizagem e sustentabilidade organizacional',
+        '6. Características dos serviços: intangibilidade, inseparabilidade, variabilidade e perecibilidade',
+        '7. Gestão da qualidade em serviços',
+        '8. Técnicas de vendas: da pré-abordagem ao pós-vendas',
+        '9. Noções de marketing digital: leads, copywriting, gatilhos mentais, inbound marketing',
+        '10. Ética e conduta profissional em vendas',
+        '11. Padrões de qualidade no atendimento',
+        '12. Utilização de canais remotos para vendas',
+        '13. Comportamento do consumidor',
+        '14. Política de Relacionamento com o Cliente: Resolução nº 4.949/2021',
+        '15. Resolução CMN nº 4.860/2020 – ouvidoria',
+        '16. Lei Brasileira de Inclusão da Pessoa com Deficiência (Lei nº 13.146/2015)',
+        '17. Código de Proteção e Defesa do Consumidor (Lei nº 8.078/1990, atualizada)'
+      ]}
+    ];
+
+    // ==== PERSISTÊNCIA ========================================================
+    const KEY = 'bb-checklist-v1';
+    function loadState(){
+      try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; }
+    }
+    function saveState(state){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+    // ==== RENDER ==============================================================
+    const content = document.getElementById('content');
+    const sTpl = document.getElementById('sectionTpl');
+    const iTpl = document.getElementById('itemTpl');
+    let state = loadState();
+
+    const index = []; // para busca
+
+    function makeId(catIdx, itemIdx){
+      const catCode = String.fromCharCode(65 + catIdx); // A, B, C...
+      return `${catCode}-${itemIdx+1}`;
+    }
+
+    function render(){
+      content.innerHTML = '';
+      index.length = 0;
+      DATA.forEach((sec, ci)=>{
+        const s = sTpl.content.firstElementChild.cloneNode(true);
+        s.dataset.cat = sec.cat;
+        s.querySelector('h2').textContent = sec.cat;
+        const list = s.querySelector('ul.topics');
+
+        sec.items.forEach((txt, ii)=>{
+          const id = makeId(ci, ii);
+          const li = iTpl.content.firstElementChild.cloneNode(true);
+          li.dataset.id = id;
+          const cb = li.querySelector('input[type="checkbox"]');
+          const title = li.querySelector('.t-title');
+          const meta = li.querySelector('.t-meta');
+
+          cb.checked = !!state[id]?.checked;
+          cb.addEventListener('change', ()=>{
+            state[id] = state[id] || {};
+            state[id].checked = cb.checked;
+            state[id].updatedAt = new Date().toISOString();
+            saveState(state);
+            updateProgress(s);
+            updateGlobalStats();
+          });
+
+          title.textContent = txt;
+          meta.textContent = state[id]?.updatedAt ? `Atualizado em ${formatDate(state[id].updatedAt)}` : '—';
+
+          list.appendChild(li);
+          index.push({ id, cat: sec.cat, text: txt.toLowerCase(), el: li, secEl: s });
+        });
+
+        content.appendChild(s);
+        updateProgress(s);
+      });
+      updateGlobalStats();
+    }
+
+    function updateProgress(sectionEl){
+      const items = [...sectionEl.querySelectorAll('li.topic')];
+      const done = items.filter(li=> li.querySelector('input').checked).length;
+      const total = items.length;
+      const pct = total? Math.round(done*100/total):0;
+      sectionEl.querySelector('.bar > i').style.width = pct+"%";
+      sectionEl.querySelector('.ptext').textContent = `${done}/${total}`;
+    }
+
+    function updateGlobalStats(){
+      const all = [...document.querySelectorAll('li.topic input[type="checkbox"]')];
+      const done = all.filter(cb=>cb.checked).length;
+      const total = all.length;
+      const pct = total? Math.round(done*100/total):0;
+      document.getElementById('stats').textContent = `Progresso geral: ${done}/${total} (${pct}%)`;
+    }
+
+    function formatDate(iso){
+      try{
+        const d = new Date(iso);
+        return d.toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short' });
+      }catch(e){ return iso }
+    }
+
+    // ==== BUSCA & FILTRO =====================================================
+    const q = document.getElementById('q');
+    const onlyOpen = document.getElementById('onlyOpen');
+
+    function applyFilters(){
+      const term = q.value.trim().toLowerCase();
+      const showOnlyOpen = onlyOpen.checked;
+      const sections = new Set();
+
+      index.forEach(row=>{
+        const cb = row.el.querySelector('input');
+        const matchText = !term || row.text.includes(term);
+        const matchOpen = !showOnlyOpen || !cb.checked;
+        const show = matchText && matchOpen;
+        row.el.style.display = show ? '' : 'none';
+        if(show) sections.add(row.secEl);
+      });
+
+      // esconde seções vazias
+      [...document.querySelectorAll('section.cat')].forEach(s=>{
+        const anyVisible = [...s.querySelectorAll('li.topic')].some(li=> li.style.display!== 'none');
+        s.style.display = anyVisible ? '' : 'none';
+      });
+    }
+
+    q.addEventListener('input', applyFilters);
+    onlyOpen.addEventListener('change', applyFilters);
+
+    // ==== EXPANDIR / RECOLHER (só visual em grid) ============================
+    document.getElementById('expandir').addEventListener('click', ()=>{
+      document.querySelectorAll('ul.topics').forEach(ul=> ul.style.gridTemplateColumns = 'repeat(1, minmax(0,1fr))');
+    });
+    document.getElementById('recolher').addEventListener('click', ()=>{
+      document.querySelectorAll('ul.topics').forEach(ul=> ul.style.gridTemplateColumns = 'repeat(2, minmax(0,1fr))');
+    });
+
+    // ==== EXPORTAR / IMPORTAR / RESET ========================================
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      a.download = `bb-checklist-${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    const importFile = document.getElementById('importFile');
+    document.getElementById('importBtn').addEventListener('click', ()=> importFile.click());
+    importFile.addEventListener('change', ()=>{
+      const file = importFile.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          if(typeof data !== 'object') throw new Error('Formato inválido');
+          state = data; saveState(state); render(); applyFilters();
+          alert('Progresso importado com sucesso!');
+        }catch(e){ alert('Arquivo inválido.'); }
+      };
+      reader.readAsText(file);
+      importFile.value = '';
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      if(confirm('Tem certeza que deseja apagar TODO o progresso local?')){
+        localStorage.removeItem(KEY); state = {}; render(); applyFilters();
+      }
+    });
+
+    // ==== START ===============================================================
+    render();
+  </script>
+</body>
+</html>
