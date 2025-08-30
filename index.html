@@ -48,23 +48,19 @@
     section.cat{ border:1px solid var(--border); background:var(--panel); border-radius:16px; padding:16px 14px; margin:14px 0 18px }
     section.cat h2{ margin:0 0 10px; color:var(--pink); font-size:22px }
 
-    /* Lista de itens */
     ul.topics{ list-style:none; margin:8px 0 0; padding:0; display:grid; grid-template-columns:repeat(1, minmax(0,1fr)); gap:8px }
     @media (min-width:700px){ ul.topics{ grid-template-columns:repeat(2, minmax(0,1fr)) } }
     li.topic{ display:flex; gap:10px; align-items:flex-start; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#121319 }
 
-    /* Checkbox lindo em rosa */
     input[type="checkbox"]{ width:20px; height:20px; margin-top:2px; accent-color: var(--accent); }
     label{ display:block; cursor:pointer }
     .t-title{ font-weight:600 }
     .t-meta{ font-size:12px; color:var(--muted); margin-top:4px }
-
-    /* Progresso por categoria */
+    
     .progress{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; margin:6px 0 8px }
     .bar{ position:relative; height:8px; background:#0f1013; border:1px solid var(--border); border-radius:999px; overflow:hidden; flex:1 }
     .bar > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, rgba(255,77,166,.85), rgba(255,77,166,.4)); }
-
-    /* Rodapé flutuante */
+    
     .fab{
       position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:20;
     }
@@ -92,10 +88,10 @@
   <main id="content"></main>
 
   <div class="fab">
-    <button id="exportBtn">⬇️ Exportar progresso (.json)</button>
+    <button id="exportBtn"> Exportar progresso (.json)</button>
     <input id="importFile" type="file" accept="application/json" class="hide" />
-    <button id="importBtn">⬆️ Importar progresso</button>
-    <button id="resetBtn" style="border-color:#4b1e35">🗑️ Resetar tudo</button>
+    <button id="importBtn"> Importar progresso</button>
+    <button id="resetBtn" style="border-color:#4b1e35"> Resetar tudo</button>
   </div>
 
   <template id="sectionTpl">
@@ -117,7 +113,6 @@
   </template>
 
   <script>
-    // ==== DADOS DOS TÓPICOS ===================================================
     const DATA = [
       { cat: 'LÍNGUA PORTUGUESA', items: [
         '1. Compreensão de textos',
@@ -233,23 +228,22 @@
       ]}
     ];
 
-    // ==== PERSISTÊNCIA ========================================================
     const KEY = 'bb-checklist-v1';
     function loadState(){
       try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; }
     }
     function saveState(state){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
-    // ==== RENDER ==============================================================
+   
     const content = document.getElementById('content');
     const sTpl = document.getElementById('sectionTpl');
     const iTpl = document.getElementById('itemTpl');
     let state = loadState();
 
-    const index = []; // para busca
+    const index = []; 
 
     function makeId(catIdx, itemIdx){
-      const catCode = String.fromCharCode(65 + catIdx); // A, B, C...
+      const catCode = String.fromCharCode(65 + catIdx); 
       return `${catCode}-${itemIdx+1}`;
     }
 
@@ -317,7 +311,7 @@
       }catch(e){ return iso }
     }
 
-    // ==== BUSCA & FILTRO =====================================================
+ 
     const q = document.getElementById('q');
     const onlyOpen = document.getElementById('onlyOpen');
 
@@ -335,7 +329,7 @@
         if(show) sections.add(row.secEl);
       });
 
-      // esconde seções vazias
+  
       [...document.querySelectorAll('section.cat')].forEach(s=>{
         const anyVisible = [...s.querySelectorAll('li.topic')].some(li=> li.style.display!== 'none');
         s.style.display = anyVisible ? '' : 'none';
@@ -345,7 +339,7 @@
     q.addEventListener('input', applyFilters);
     onlyOpen.addEventListener('change', applyFilters);
 
-    // ==== EXPANDIR / RECOLHER (só visual em grid) ============================
+  
     document.getElementById('expandir').addEventListener('click', ()=>{
       document.querySelectorAll('ul.topics').forEach(ul=> ul.style.gridTemplateColumns = 'repeat(1, minmax(0,1fr))');
     });
@@ -353,7 +347,7 @@
       document.querySelectorAll('ul.topics').forEach(ul=> ul.style.gridTemplateColumns = 'repeat(2, minmax(0,1fr))');
     });
 
-    // ==== EXPORTAR / IMPORTAR / RESET ========================================
+
     document.getElementById('exportBtn').addEventListener('click', ()=>{
       const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
       const a = document.createElement('a');
@@ -388,8 +382,9 @@
       }
     });
 
-    // ==== START ===============================================================
+
     render();
   </script>
 </body>
 </html>
+
